@@ -72,182 +72,240 @@ def init_server(
     @mcp.tool()
     async def get_nfts_by_owner(request: NFTByOwnerRequest) -> Dict[str, Any]:
         """
-        Get NFTs owned by a wallet address
+        Retrieve all NFTs (Non-Fungible Tokens) owned by a specific wallet address.
+
+        Use this tool to get a complete list of NFTs in a wallet, including ERC-721 and ERC-1155 tokens.
+        Returns NFT metadata such as name, image, collection information, and token IDs. Supports filtering
+        by blockchain and pagination for wallets with many NFTs.
 
         Args:
-            request: NFT by owner request parameters
+            request: Request containing wallet address, optional blockchain filter, and pagination parameters
 
         Returns:
-            List of NFTs owned by the specified wallet
+            Dictionary containing "assets" array with NFT details (name, image, collection, tokenId, etc.) and "next_page_token" for pagination
         """
         return await nft_api.get_nfts_by_owner(request)
 
     @mcp.tool()
     async def get_nft_metadata(request: NFTMetadataRequest) -> Dict[str, Any]:
         """
-        Get metadata for a specific NFT
+        Retrieve detailed metadata for a specific NFT by contract address and token ID.
+
+        Use this tool to get complete NFT information including name, description, image URL, attributes/traits,
+        and other metadata stored on-chain or in IPFS. Essential for displaying NFT details or verifying
+        NFT properties.
 
         Args:
-            request: NFT metadata request parameters
+            request: Request containing blockchain identifier, NFT contract address, and token ID
 
         Returns:
-            NFT metadata information
+            Dictionary containing NFT metadata including name, description, image, attributes, and contract information
         """
         return await nft_api.get_nft_metadata(request)
 
     @mcp.tool()
     async def get_nft_holders(request: NFTHoldersRequest) -> Dict[str, Any]:
         """
-        Get holders of a specific NFT collection
+        Retrieve list of wallet addresses that hold NFTs from a specific collection.
+
+        Use this tool to get all current holders of an NFT collection. Useful for analyzing collection distribution,
+        identifying whale holders, or building holder lists for airdrops. Supports pagination for large collections.
 
         Args:
-            request: NFT holders request parameters
+            request: Request containing blockchain identifier, NFT collection contract address, and pagination parameters
 
         Returns:
-            List of NFT holders for the collection
+            Dictionary containing "holders" array with wallet addresses and "next_page_token" for pagination
         """
         return await nft_api.get_nft_holders(request)
 
     @mcp.tool()
     async def get_nft_transfers(request: NFTTransfersRequest) -> Dict[str, Any]:
         """
-        Get transfer history for NFTs
+        Retrieve transfer history for NFTs, filtered by collection, token, wallet, or block range.
+
+        Use this tool to track NFT movements, analyze trading activity, or build transfer history views.
+        Can filter by contract address, specific token ID, wallet address (sender or receiver), and block range.
+        Supports pagination for large result sets.
 
         Args:
-            request: NFT transfers request parameters
+            request: Request containing blockchain identifier, optional filters (contract_address, token_id, wallet_address,
+                    from_block, to_block), and pagination parameters
 
         Returns:
-            List of NFT transfers matching the criteria
+            Dictionary containing "transfers" array with transfer details (from, to, tokenId, block info) and "next_page_token" for pagination
         """
         return await nft_api.get_nft_transfers(request)
 
     @mcp.tool()
     async def get_blockchain_stats(request: BlockchainStatsRequest) -> Dict[str, Any]:
         """
-        Get blockchain statistics
+        Retrieve blockchain statistics including latest block number, total transaction count, and transactions per second (TPS).
+
+        Use this tool to get an overview of blockchain activity and current state. Returns statistics such as:
+        - Latest block number
+        - Total number of transactions
+        - Current transactions per second (TPS)
 
         Args:
-            request: Blockchain stats request parameters
+            request: Request containing the blockchain identifier (e.g., "eth", "bsc", "polygon")
 
         Returns:
-            Statistics for the specified blockchain
+            Dictionary containing "stats" with lastBlockNumber, transactions, and tps fields
         """
         return await query_api.get_blockchain_stats(request)
 
     @mcp.tool()
     async def get_blocks(request: BlocksRequest) -> Dict[str, Any]:
         """
-        Get blocks information
+        Retrieve blockchain block information within a specified range.
+
+        Use this tool to fetch block data including block number, hash, timestamp, transaction count, gas used, and other block metadata.
+        Supports filtering by block range (from_block to to_block) and pagination for large result sets.
 
         Args:
-            request: Blocks request parameters
+            request: Request containing blockchain identifier, optional block range (from_block, to_block),
+                    sort order (descending_order), and pagination parameters (page_token, page_size)
 
         Returns:
-            List of blocks matching the criteria
+            Dictionary containing "blocks" array with block data and "next_page_token" for pagination
         """
         return await query_api.get_blocks(request)
 
     @mcp.tool()
     async def get_logs(request: LogsRequest) -> Dict[str, Any]:
         """
-        Get blockchain logs
+        Retrieve blockchain event logs emitted by smart contracts.
+
+        Use this tool to query event logs filtered by contract address, topics (event signatures), and block range.
+        Useful for tracking contract events, token transfers, or other on-chain activities. Supports pagination
+        for large result sets.
 
         Args:
-            request: Logs request parameters
+            request: Request containing blockchain identifier, optional filters (address, topics, from_block, to_block),
+                    sort order (descending_order), and pagination parameters (page_token, page_size)
 
         Returns:
-            List of logs matching the criteria
+            Dictionary containing "logs" array with log entries (address, topics, data, block info) and "next_page_token" for pagination
         """
         return await query_api.get_logs(request)
 
     @mcp.tool()
     async def get_transactions_by_hash(request: TransactionsByHashRequest) -> Dict[str, Any]:
         """
-        Get transactions by hash
+        Retrieve detailed information about a specific transaction by its hash.
+
+        Use this tool to get complete transaction details including sender, recipient, value, gas information,
+        transaction status, block information, and input data. Essential for verifying transaction status
+        and examining transaction details.
 
         Args:
-            request: Transactions by hash request parameters
+            request: Request containing blockchain identifier and transaction hash
 
         Returns:
-            Transaction details for the specified hash
+            Dictionary containing complete transaction details including hash, from, to, value, gas, status, block info, and logs
         """
         return await query_api.get_transactions_by_hash(request)
 
     @mcp.tool()
     async def get_transactions_by_address(request: TransactionsByAddressRequest) -> Dict[str, Any]:
         """
-        Get transactions by address
+        Retrieve all transactions associated with a wallet or contract address.
+
+        Use this tool to get transaction history for a specific address. Can filter by block range and supports
+        pagination. Returns both incoming and outgoing transactions. Useful for tracking wallet activity,
+        analyzing contract interactions, or building transaction history views.
 
         Args:
-            request: Transactions by address request parameters
+            request: Request containing blockchain identifier, wallet/contract address, optional block range filters,
+                    sort order (descending_order), and pagination parameters (page_token, page_size)
 
         Returns:
-            List of transactions for the specified address
+            Dictionary containing "transactions" array with transaction details and "next_page_token" for pagination
         """
         return await query_api.get_transactions_by_address(request)
 
     @mcp.tool()
     async def get_interactions(request: InteractionsRequest) -> Dict[str, Any]:
         """
-        Get wallet interactions with contracts
+        Retrieve list of blockchains where a wallet or contract address has had interactions.
+
+        Use this tool to discover which blockchains an address has been active on. An interaction is defined as
+        having tokens, NFTs, or transactions on a blockchain. Useful for multi-chain wallet analysis or
+        determining which chains to query for a specific address.
 
         Args:
-            request: Interactions request parameters
+            request: Request containing blockchain identifier and wallet/contract address
 
         Returns:
-            List of interactions matching the criteria
+            Dictionary containing "interactions" array with blockchain identifiers where the address has activity
         """
         return await query_api.get_interactions(request)
 
     @mcp.tool()
     async def get_account_balance(request: AccountBalanceRequest) -> Dict[str, Any]:
         """
-        Get token balances for a wallet address
+        Retrieve token balances for a wallet address, including native tokens and ERC-20 tokens.
+
+        Use this tool to get a complete overview of all tokens held by a wallet. Returns balances in both
+        raw token amounts and USD values. Can filter to show only ERC-20 tokens, only native tokens, or
+        exclude NFTs. Supports pagination for wallets with many token holdings.
 
         Args:
-            request: Account balance request parameters
+            request: Request containing wallet address, optional blockchain filter, filter options (erc20_only,
+                    native_only, tokens_only), and pagination parameters
 
         Returns:
-            Token balances for the specified wallet
+            Dictionary containing "assets" array with token balances (symbol, balance, balanceUsd, decimals, etc.) and "next_page_token" for pagination
         """
         return await token_api.get_account_balance(request)
 
     @mcp.tool()
     async def get_currencies(request: CurrenciesRequest) -> CurrenciesResponse:
         """
-        Get available currencies
+        Retrieve list of available currencies/tokens on a blockchain.
+
+        Use this tool to discover what tokens are available on a specific blockchain. Returns token information
+        including contract addresses, symbols, names, and decimals. Useful for building token selection interfaces
+        or discovering available tokens on a chain.
 
         Args:
-            request: Currencies request parameters
+            request: Request containing optional blockchain filter and pagination parameters
 
         Returns:
-            List of available currencies
+            Dictionary containing "currencies" array with token information (address, symbol, name, decimals, etc.)
         """
         return await token_api.get_currencies(request)
 
     @mcp.tool()
     async def get_token_price(request: TokenPriceRequest) -> Dict[str, Any]:
         """
-        Get token price information
+        Retrieve current price information for a specific token in USD.
+
+        Use this tool to get real-time token prices. Returns the current USD price of the token, useful for
+        calculating portfolio values, displaying prices, or performing price-based calculations.
 
         Args:
-            request: Token price request parameters
+            request: Request containing blockchain identifier and token contract address
 
         Returns:
-            Price information for the specified token
+            Dictionary containing "price_usd" with the current token price in USD
         """
         return await token_api.get_token_price(request)
 
     @mcp.tool()
     async def get_token_holders(request: TokenHoldersRequest) -> TokenHoldersResponse:
         """
-        Get token holders
+        Retrieve list of wallet addresses that hold a specific token.
+
+        Use this tool to get all current holders of a token. Useful for analyzing token distribution,
+        identifying large holders, or building holder lists. Supports pagination for tokens with many holders.
 
         Args:
-            request: Token holders request parameters
+            request: Request containing blockchain identifier, token contract address, and pagination parameters
 
         Returns:
-            List of holders for the specified token
+            Dictionary containing "holders" array with wallet addresses and their balances, and "next_page_token" for pagination
         """
         return await token_api.get_token_holders(request)
 
@@ -256,36 +314,47 @@ def init_server(
         request: TokenHoldersCountRequest,
     ) -> TokenHoldersCountResponse:
         """
-        Get token holders count
+        Retrieve the total number of unique addresses holding a specific token.
+
+        Use this tool to quickly get the holder count for a token without fetching the full list of holders.
+        Useful for displaying token statistics or determining token distribution metrics.
 
         Args:
-            request: Token holders count request parameters
+            request: Request containing blockchain identifier and token contract address
 
         Returns:
-            Holder count for the specified token
+            Dictionary containing "holders_count" with the total number of unique token holders
         """
         return await token_api.get_token_holders_count(request)
 
     @mcp.tool()
     async def get_token_transfers(request: TokenTransfersRequest) -> TokenTransfersResponse:
         """
-        Get token transfer history
+        Retrieve transfer history for tokens, filtered by contract, wallet, or block range.
+
+        Use this tool to track token movements, analyze trading activity, or build transfer history views.
+        Can filter by token contract address, wallet address (sender or receiver), and block range.
+        Supports pagination for large result sets.
 
         Args:
-            request: Token transfers request parameters
+            request: Request containing blockchain identifier, optional filters (contract_address, wallet_address,
+                    from_block, to_block), and pagination parameters
 
         Returns:
-            List of token transfers matching the criteria
+            Dictionary containing "transfers" array with transfer details (from, to, value, block info) and "next_page_token" for pagination
         """
         return await token_api.get_token_transfers(request)
 
     @mcp.tool()
     def get_supported_networks() -> List[str]:
         """
-        Get a list of supported blockchain networks
+        Retrieve list of blockchain networks supported by this MCP server.
+
+        Use this tool to discover which blockchains are available for querying. Returns a list of blockchain
+        identifiers (e.g., "eth", "bsc", "polygon") that can be used in other tool requests.
 
         Returns:
-            List of supported blockchain network identifiers
+            List of supported blockchain network identifiers (e.g., ["eth", "bsc", "polygon", "avalanche", "arbitrum", "fantom", "optimism"])
         """
         return SUPPORTED_NETWORKS
 

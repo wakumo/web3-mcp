@@ -31,34 +31,58 @@ class NFTMetadata(BaseModel):
 
 
 class NFTByOwnerRequest(BaseModel):
-    wallet_address: str
-    blockchain: Optional[str] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting NFTs owned by a wallet address"""
+
+    wallet_address: str = Field(..., description="Wallet address to query NFTs for (hex string, e.g., '0x...')")
+    blockchain: Optional[str] = Field(
+        None,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries all supported chains.",
+    )
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of NFTs per page (max 100)")
 
 
 class NFTMetadataRequest(BaseModel):
-    blockchain: str
-    contract_address: str
-    token_id: str
+    """Request model for getting metadata of a specific NFT"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: str = Field(..., description="NFT contract address (hex string, e.g., '0x...')")
+    token_id: str = Field(..., description="Token ID of the NFT (string, can be a large number for some NFTs)")
 
 
 class NFTHoldersRequest(BaseModel):
-    blockchain: str
-    contract_address: str
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting holders of an NFT collection"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: str = Field(..., description="NFT collection contract address (hex string, e.g., '0x...')")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of holders per page (max 100)")
 
 
 class NFTTransfersRequest(BaseModel):
-    blockchain: str
-    contract_address: Optional[str] = None
-    token_id: Optional[str] = None
-    wallet_address: Optional[str] = None
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting NFT transfer history"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: Optional[str] = Field(None, description="NFT contract address to filter transfers by (hex string, e.g., '0x...')")
+    token_id: Optional[str] = Field(None, description="Specific token ID to filter transfers by (string)")
+    wallet_address: Optional[str] = Field(None, description="Wallet address to filter transfers by (hex string, e.g., '0x...')")
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transfers per page (max 100)")
 
 
 class NFTApi:

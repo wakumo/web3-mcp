@@ -7,7 +7,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from ankr import AnkrWeb3
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..constants import DEFAULT_CURRENCIES_LIMIT, DEFAULT_PAGE_SIZE, MAX_CURRENCIES_LIMIT, MAX_PAGE_SIZE
 from ..utils import extract_paginated_result, to_serializable
@@ -16,47 +16,79 @@ from ..utils import extract_paginated_result, to_serializable
 class AccountBalanceRequest(BaseModel):
     """Request model for getting token balances"""
 
-    wallet_address: str
-    blockchain: Optional[str] = None
-    page_size: Optional[int] = None
-    page_token: Optional[str] = None
-    erc20_only: Optional[bool] = None
-    native_only: Optional[bool] = None
-    tokens_only: Optional[bool] = None
+    wallet_address: str = Field(..., description="Wallet address to query token balances for (hex string, e.g., '0x...')")
+    blockchain: Optional[str] = Field(
+        None,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries all supported chains.",
+    )
+    page_size: Optional[int] = Field(None, description="Number of token balances per page (max 100)")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    erc20_only: Optional[bool] = Field(None, description="If true, return only ERC-20 tokens (exclude native tokens)")
+    native_only: Optional[bool] = Field(None, description="If true, return only native blockchain tokens (e.g., ETH, BNB)")
+    tokens_only: Optional[bool] = Field(None, description="If true, return only tokens (exclude NFTs)")
 
 
 class CurrenciesRequest(BaseModel):
-    blockchain: Optional[str] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting available currencies on a blockchain"""
+
+    blockchain: Optional[str] = Field(
+        None,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, returns currencies from all chains.",
+    )
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of currencies per page (max 50)")
 
 
 class TokenPriceRequest(BaseModel):
-    blockchain: str
-    contract_address: str
+    """Request model for getting token price information"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: str = Field(..., description="Token contract address (hex string, e.g., '0x...')")
 
 
 # Not provided as a tool, but needed for internal functionality
 class TokenHoldersRequest(BaseModel):
-    blockchain: str
-    contract_address: str
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting token holders"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: str = Field(..., description="Token contract address (hex string, e.g., '0x...')")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of holders per page (max 100)")
 
 
 class TokenHoldersCountRequest(BaseModel):
-    blockchain: str
-    contract_address: str
+    """Request model for getting token holders count"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: str = Field(..., description="Token contract address (hex string, e.g., '0x...')")
 
 
 class TokenTransfersRequest(BaseModel):
-    blockchain: str
-    contract_address: Optional[str] = None
-    wallet_address: Optional[str] = None
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting token transfer history"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    contract_address: Optional[str] = Field(None, description="Token contract address to filter transfers by (hex string, e.g., '0x...')")
+    wallet_address: Optional[str] = Field(None, description="Wallet address to filter transfers by (hex string, e.g., '0x...')")
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transfers per page (max 100)")
 
 
 class AccountBalanceResponse(BaseModel):

@@ -6,60 +6,108 @@ import asyncio
 from typing import Any, Dict, List, Optional
 
 from ankr import AnkrWeb3
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..utils import extract_paginated_result, to_serializable
 
 
 class BlockchainStatsRequest(BaseModel):
-    blockchain: str
+    """Request model for getting blockchain statistics"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
 
 
 class BlocksRequest(BaseModel):
-    blockchain: str
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    descending_order: Optional[bool] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting blocks within a specified range"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of blocks per page (max 10000)")
 
 
 class LogsRequest(BaseModel):
-    blockchain: str
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    address: Optional[str] = None
-    topics: Optional[List[str]] = None
-    descending_order: Optional[bool] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting blockchain event logs"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    address: Optional[str] = Field(None, description="Contract address to filter logs by (hex string, e.g., '0x...')")
+    topics: Optional[List[str]] = Field(
+        None, description="Array of topic hashes to filter logs. Topics are order-dependent. Each topic can be a hex string or null"
+    )
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of logs per page (max 100)")
 
 
 class TransactionsByHashRequest(BaseModel):
-    blockchain: str
-    transaction_hash: str
+    """Request model for getting transaction details by hash"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    transaction_hash: str = Field(..., description="Transaction hash to look up (hex string, e.g., '0x...')")
 
 
 class TransactionsByAddressRequest(BaseModel):
-    blockchain: str
-    wallet_address: str
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    descending_order: Optional[bool] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting transactions by wallet or contract address"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. Can also be an array of chains or empty to query all chains.",
+    )
+    wallet_address: str = Field(..., description="Wallet or contract address to search for transactions (hex string, e.g., '0x...')")
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transactions per page (max 100)")
 
 
 class InteractionsRequest(BaseModel):
-    blockchain: str
-    wallet_address: str
-    from_block: Optional[int] = None
-    to_block: Optional[int] = None
-    contract_address: Optional[str] = None
-    descending_order: Optional[bool] = None
-    page_token: Optional[str] = None
-    page_size: Optional[int] = DEFAULT_PAGE_SIZE
+    """Request model for getting blockchains interacted with a particular address"""
+
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+    )
+    wallet_address: str = Field(..., description="Wallet or contract address to check for interactions (hex string, e.g., '0x...')")
+    from_block: Optional[int] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    to_block: Optional[int] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    )
+    contract_address: Optional[str] = Field(None, description="Optional contract address to filter interactions by (hex string, e.g., '0x...')")
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of interactions per page (max 100)")
 
 
 class QueryApi:
