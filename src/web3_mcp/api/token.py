@@ -2,11 +2,15 @@
 Token API implementation for Ankr Advanced API
 """
 
+import asyncio
 import json
 from typing import Any, Dict, List, Optional
 
 from ankr import AnkrWeb3
 from pydantic import BaseModel
+
+from ..constants import DEFAULT_CURRENCIES_LIMIT, DEFAULT_PAGE_SIZE, MAX_CURRENCIES_LIMIT, MAX_PAGE_SIZE
+from ..utils import extract_paginated_result, to_serializable
 
 
 class AccountBalanceRequest(BaseModel):
@@ -24,7 +28,7 @@ class AccountBalanceRequest(BaseModel):
 class CurrenciesRequest(BaseModel):
     blockchain: Optional[str] = None
     page_token: Optional[str] = None
-    page_size: Optional[int] = 50
+    page_size: Optional[int] = DEFAULT_PAGE_SIZE
 
 
 class TokenPriceRequest(BaseModel):
@@ -37,7 +41,7 @@ class TokenHoldersRequest(BaseModel):
     blockchain: str
     contract_address: str
     page_token: Optional[str] = None
-    page_size: Optional[int] = 50
+    page_size: Optional[int] = DEFAULT_PAGE_SIZE
 
 
 class TokenHoldersCountRequest(BaseModel):
@@ -52,7 +56,7 @@ class TokenTransfersRequest(BaseModel):
     from_block: Optional[int] = None
     to_block: Optional[int] = None
     page_token: Optional[str] = None
-    page_size: Optional[int] = 50
+    page_size: Optional[int] = DEFAULT_PAGE_SIZE
 
 
 class AccountBalanceResponse(BaseModel):
@@ -101,7 +105,7 @@ class TokenApi:
         )
 
         result = self.client.token.get_account_balance(ankr_request)
-        balances = [balance.__dict__ for balance in result] if result else []
+        balances = [to_serializable(balance) for balance in result] if result else []
         return {"assets": balances}
 
     async def get_currencies(self, request: CurrenciesRequest) -> CurrenciesResponse:
@@ -112,8 +116,24 @@ class TokenApi:
             blockchain=request.blockchain if request.blockchain else None,
         )
 
+        # Check if Ankr SDK supports pagination for get_currencies
+        # Note: Ankr SDK may not support page_size/page_token for get_currencies
+        # If it does, we can add:
+        # if request.page_size is not None:
+        #     ankr_request.pageSize = request.page_size
+        # if request.page_token:
+        #     ankr_request.pageToken = request.page_token
+
         result = self.client.token.get_currencies(ankr_request)
-        currencies = list(result) if result else []
+        currencies_raw = list(result) if result else []
+
+        # Apply page_size limit (client-side limit)
+        limit = min(request.page_size or DEFAULT_CURRENCIES_LIMIT, MAX_CURRENCIES_LIMIT)
+        if len(currencies_raw) > limit:
+            currencies_raw = currencies_raw[:limit]
+
+        # Convert objects to dicts for Pydantic validation
+        currencies = [to_serializable(c) for c in currencies_raw]
         return CurrenciesResponse(currencies=currencies)
 
     async def get_token_price(self, request: TokenPriceRequest) -> Dict[str, Any]:
@@ -126,39 +146,42 @@ class TokenApi:
         )
 
         result = self.client.token.get_token_price(ankr_request)
-        if not result:
+
+        # get_token_price returns string (usdPrice) directly
+        if result is None:
             raise ValueError("Failed to get token price: result is None")
 
         # If result is a string, it's the direct price value
         if isinstance(result, str):
+            # Handle empty string or "0"
+            if not result or result.strip() == "":
+                return {"price_usd": "0"}
             try:
                 price = float(result)
-                if price > 0:
-                    return {"price_usd": result}
+                return {"price_usd": result}
             except ValueError:
-                pass
-
-        # Try to parse result as JSON
-        try:
-            if isinstance(result, str):
-                data = json.loads(result)
-                if isinstance(data, dict) and "usdPrice" in data:
-                    return {"price_usd": str(data["usdPrice"])}
-                elif isinstance(data, dict) and "price" in data:
-                    return {"price_usd": str(data["price"])}
-                elif isinstance(data, dict) and "price_usd" in data:
-                    return {"price_usd": str(data["price_usd"])}
-        except json.JSONDecodeError:
-            pass
+                # If it's not a valid number, try to parse as JSON
+                try:
+                    data = json.loads(result)
+                    if isinstance(data, dict) and "usdPrice" in data:
+                        return {"price_usd": str(data["usdPrice"])}
+                    elif isinstance(data, dict) and "price" in data:
+                        return {"price_usd": str(data["price"])}
+                    elif isinstance(data, dict) and "price_usd" in data:
+                        return {"price_usd": str(data["price_usd"])}
+                except json.JSONDecodeError:
+                    pass
+                # If all parsing fails, return the string as-is
+                return {"price_usd": result}
 
         # Try to get price from object attributes
         price_value: Optional[float] = None
         if hasattr(result, "usdPrice"):
-            price_value = float(result.usdPrice)
+            price_value = float(result.usdPrice) if result.usdPrice else 0
         elif hasattr(result, "price"):
-            price_value = float(result.price)
+            price_value = float(result.price) if result.price else 0
         elif hasattr(result, "price_usd"):
-            price_value = float(result.price_usd)
+            price_value = float(result.price_usd) if result.price_usd else 0
 
         if price_value is None:
             raise ValueError("Failed to get token price: price not found in response")
@@ -177,9 +200,26 @@ class TokenApi:
             pageSize=request.page_size,
         )
 
-        result = self.client.token.get_token_holders(ankr_request)
-        holders = list(result) if result else []
-        return TokenHoldersResponse(holders=holders, next_page_token="")
+        # Run in executor to avoid blocking event loop
+        def _get_and_convert_holders():
+            """Get holders and convert generator to list in executor"""
+            try:
+                result = self.client.token.get_token_holders(ankr_request)
+                return extract_paginated_result(
+                    result, "holders", request.page_size, MAX_PAGE_SIZE
+                )
+            except Exception:
+                return None, []
+
+        loop = asyncio.get_event_loop()
+        next_token, holders = await loop.run_in_executor(None, _get_and_convert_holders)
+
+        if holders is None:
+            return TokenHoldersResponse(holders=[], next_page_token="")
+
+        # Convert to serializable format
+        holders_list = [to_serializable(h) for h in holders]
+        return TokenHoldersResponse(holders=holders_list, next_page_token=next_token or "")
 
     async def get_token_holders_count(
         self, request: TokenHoldersCountRequest
@@ -198,17 +238,38 @@ class TokenApi:
 
     async def get_token_transfers(self, request: TokenTransfersRequest) -> TokenTransfersResponse:
         """Get token transfers"""
-        from ankr.types import GetTokenTransfersRequest
+        from ankr.types import GetTransfersRequest
 
-        ankr_request = GetTokenTransfersRequest(
+        # GetTransfersRequest uses 'address' for contract or wallet address
+        address = request.contract_address or request.wallet_address
+        addresses = [address] if address else None
+
+        ankr_request = GetTransfersRequest(
             blockchain=request.blockchain,
-            contractAddress=request.contract_address,
+            address=addresses,
             fromBlock=request.from_block,
             toBlock=request.to_block,
             pageToken=request.page_token,
             pageSize=request.page_size,
         )
 
-        result = self.client.token.get_token_transfers(ankr_request)
-        transfers = list(result) if result else []
-        return TokenTransfersResponse(transfers=transfers, next_page_token="")
+        # Run in executor to avoid blocking event loop
+        def _get_and_convert_transfers():
+            """Get transfers and convert generator to list in executor"""
+            try:
+                result = self.client.token.get_token_transfers(ankr_request)
+                return extract_paginated_result(
+                    result, "transfers", request.page_size, MAX_PAGE_SIZE
+                )
+            except Exception:
+                return None, []
+
+        loop = asyncio.get_event_loop()
+        next_token, transfers = await loop.run_in_executor(None, _get_and_convert_transfers)
+
+        if transfers is None:
+            return TokenTransfersResponse(transfers=[], next_page_token="")
+
+        # Convert to serializable format
+        transfers_list = [to_serializable(t) for t in transfers]
+        return TokenTransfersResponse(transfers=transfers_list, next_page_token=next_token or "")

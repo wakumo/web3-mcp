@@ -13,3 +13,10 @@ wheels/
 coverage.xml
 .coverage
 htmlcov/
+
+# IDE and tooling
+.cursor/
+openspec/
+.env
+AGENTS.md
+.gitmodules

@@ -22,3 +22,12 @@ TOKEN_GET_TOKEN_HOLDERS_COUNT = "ankr_getTokenHoldersCount"
 TOKEN_GET_TOKEN_TRANSFERS = "ankr_getTokenTransfers"
 
 SUPPORTED_NETWORKS = ["eth", "bsc", "polygon", "avalanche", "arbitrum", "fantom", "optimism"]
+
+# Pagination constants
+DEFAULT_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 100
+DEFAULT_CURRENCIES_LIMIT = 20
+MAX_CURRENCIES_LIMIT = 50
+
+# Response attribute names
+NEXT_PAGE_TOKEN_ATTRS = ("nextPageToken", "next_page_token")

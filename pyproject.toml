@@ -16,10 +16,12 @@ web3-mcp = "web3_mcp.__main__:main"
 dev = [
     "black>=25.1.0",
     "isort>=6.0.1",
+    "mcp>=1.6.0",
     "mypy>=1.15.0",
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
+    "pytest-cov>=5.0.0",
     "ruff>=0.11.5",
 ]
 
@@ -50,11 +52,11 @@ disallow_incomplete_defs = true
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "session"
 
-[dependency-groups]
-dev = [
-    "pytest-asyncio>=0.26.0",
-]
-
 [tool.hatch.version]
 path = "src/web3_mcp/__version__.py"
-pattern = "__version__ = \"(?P<version>.+)\""
+pattern = '__version__ = "(?P<version>.+)"'
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.0.0",
+]
