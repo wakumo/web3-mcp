@@ -16,16 +16,19 @@ class AnkrAuth:
         Initialize Ankr authentication
 
         Args:
-            endpoint: Ankr RPC endpoint URL (defaults to env var ANKR_ENDPOINT)
-            private_key: Private key for authentication (defaults to env var ANKR_PRIVATE_KEY)
+            endpoint: Ankr RPC endpoint URL (optional, SDK uses default, currently unused)
+            private_key: API key for authentication (defaults to env var ANKR_PRIVATE_KEY)
         """
-        self.endpoint = endpoint or os.environ.get("ANKR_ENDPOINT")
-        self.private_key = private_key or os.environ.get(
-            "ANKR_PRIVATE_KEY", os.environ.get("DOTENV_PRIVATE_KEY_DEVIN")
+        # Try private_key parameter first, then environment variables in order of preference
+        self.private_key = (
+            private_key
+            or os.environ.get("ANKR_PRIVATE_KEY")
+            or os.environ.get("ANKR_API_KEY")
+            or os.environ.get("DOTENV_PRIVATE_KEY_DEVIN")
         )
 
-        if not self.endpoint:
-            raise ValueError("Ankr endpoint not provided. Set ANKR_ENDPOINT environment variable.")
+        if not self.private_key:
+            raise ValueError("Ankr API key not provided. Set ANKR_PRIVATE_KEY environment variable.")
 
         self._client = None
 

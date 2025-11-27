@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Test tool get_currencies"""
+
+import asyncio
+import json
+import os
+import sys
+
+# Load .env file if exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+
+async def test_get_currencies():
+    """Test get_currencies tool"""
+    try:
+        from mcp import ClientSession, StdioServerParameters
+        from mcp.client.stdio import stdio_client
+    except ImportError:
+        print("❌ Need to install mcp SDK")
+        print("   Run: uv add --dev mcp")
+        return
+
+    private_key = os.environ.get("ANKR_PRIVATE_KEY") or os.environ.get("ANKR_API_KEY")
+    if not private_key:
+        print("❌ Need to set ANKR_PRIVATE_KEY environment variable")
+        return
+
+    print("=" * 70)
+    print("TEST: get_currencies")
+    print("=" * 70)
+
+    # Test parameters
+    blockchain = "eth"
+
+    print(f"\n📋 Parameters:")
+    print(f"   Blockchain: {blockchain}")
+
+    python_exe = sys.executable
+    server_params = StdioServerParameters(
+        command=python_exe,
+        args=["-m", "web3_mcp"],
+        env={
+            **os.environ,
+            "ANKR_PRIVATE_KEY": private_key,
+        },
+    )
+
+    try:
+        print("\n🔌 Connecting to MCP server...")
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                print("✅ Connected successfully!")
+
+                print(f"\n🔍 Calling tool 'get_currencies'...")
+                result = await session.call_tool(
+                    "get_currencies",
+                    arguments={
+                        "request": {
+                            "blockchain": blockchain,
+                        }
+                    },
+                )
+
+                print(f"\n📊 Response:")
+                print(f"   isError: {result.isError}")
+
+                if result.isError:
+                    print(f"❌ Tool returned error:")
+                    for content in result.content:
+                        if hasattr(content, "text"):
+                            print(f"   {content.text}")
+                    return
+
+                if not result.content:
+                    print("⚠️  Tool did not return content")
+                    return
+
+                # Parse and display results
+                for content in result.content:
+                    if hasattr(content, "text"):
+                        text = content.text
+                        print(f"\n📄 Raw response:")
+                        print(text[:500])
+                        if len(text) > 500:
+                            print("... (truncated)")
+
+                        try:
+                            data = json.loads(text)
+                            print(f"\n✅ Parsed JSON:")
+
+                            # Display number of currencies
+                            if isinstance(data, dict):
+                                if "currencies" in data:
+                                    currencies = data["currencies"]
+                                    print(f"\n📦 Number of currencies: {len(currencies) if isinstance(currencies, list) else 'N/A'}")
+
+                                    # Display full list of all currencies
+                                    if isinstance(currencies, list) and len(currencies) > 0:
+                                        print(f"\n📋 List of all currencies:")
+                                        for i, currency in enumerate(currencies):
+                                            if isinstance(currency, dict):
+                                                name = currency.get("name", currency.get("symbol", "N/A"))
+                                                symbol = currency.get("symbol", "N/A")
+                                                print(f"   {i+1}. {name} ({symbol})")
+
+                                        # Display full JSON of all currencies
+                                        print(f"\n📄 Full JSON of all currencies:")
+                                        print(json.dumps(data, indent=2, ensure_ascii=False))
+
+                        except json.JSONDecodeError as e:
+                            print(f"\n⚠️  Failed to parse JSON: {e}")
+
+                print("\n✅ Test completed!")
+
+    except Exception as e:
+        print(f"\n❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
+if __name__ == "__main__":
+    asyncio.run(test_get_currencies())
