@@ -62,7 +62,7 @@ def init_server(
     _auth = AnkrAuth(endpoint, private_key)
 
     # Create MCP server
-    mcp: FastMCP = FastMCP(name, dependencies=["ankr-sdk>=1.0.2"])
+    mcp: FastMCP = FastMCP(name)
 
     # Initialize API clients
     nft_api = NFTApi(_auth.client)
