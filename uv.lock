@@ -74,7 +74,7 @@ wheels = [
 
 [[package]]
 name = "ankr-sdk"
-version = "1.0.2"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "eth-typing" },
@@ -84,9 +84,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "web3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/a5/6b38cd11ff8be8cb3c1dd2cb0d44adbc248ac678ba28bf24151607c80135/ankr_sdk-1.0.2.tar.gz", hash = "sha256:3a314584f8f94def6ea8a93922fb6dcc9e2255c6b127c02e3b58e69b62dfb7b2", size = 19953, upload-time = "2024-07-05T10:32:59.926Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/de/a7c2756f8f3e07f3b794b493acc30889a16390bdefbfd0e6205d5afee876/ankr_sdk-1.0.3.tar.gz", hash = "sha256:401663711f1f27ac33af0ba5c4252657a0646678cc3ef7d367a6b072d178a267", size = 18311, upload-time = "2025-10-13T17:17:17.378Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/bc/912858c7604ace2f53eeff0be745a9223d8fe7142043b2f20a5b8e8c385d/ankr_sdk-1.0.2-py3-none-any.whl", hash = "sha256:e33448ebf7f20520acbec204c5997a3799889592f9ec3c28928ad57c71c3de5c", size = 18624, upload-time = "2024-07-05T10:32:58.782Z" },
+    { url = "https://files.pythonhosted.org/packages/46/0a/5d964fe5741329b10873cfb03a48330328fea080ea7e180915ffe4dee61e/ankr_sdk-1.0.3-py3-none-any.whl", hash = "sha256:52ec6b9c02de7550ba9eb108cea2bc7138ef18e77274cae2d125ee68719c5be1", size = 16785, upload-time = "2025-10-13T17:17:16.403Z" },
 ]
 
 [[package]]
@@ -2004,12 +2004,13 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "ankr-sdk", specifier = ">=1.0.2" },
+    { name = "ankr-sdk", specifier = ">=1.0.3" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
     { name = "fastmcp", specifier = ">=2.2.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=6.0.1" },
@@ -2024,7 +2025,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest-cov", specifier = ">=7.0.0" }]
+dev = [
+    { name = "pytest-asyncio", specifier = ">=0.26.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+]
 
 [[package]]
 name = "websockets"

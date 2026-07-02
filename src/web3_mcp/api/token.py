@@ -13,6 +13,20 @@ from ..constants import DEFAULT_CURRENCIES_LIMIT, DEFAULT_PAGE_SIZE, MAX_CURRENC
 from ..utils import extract_paginated_result, to_serializable
 
 
+DEFAULT_ACCOUNT_BALANCE_BLOCKCHAINS = [
+    "arbitrum",
+    "avalanche",
+    "base",
+    "bsc",
+    "eth",
+    "fantom",
+    "linea",
+    "optimism",
+    "polygon",
+    "scroll",
+]
+
+
 class AccountBalanceRequest(BaseModel):
     """Request model for getting token balances"""
 
@@ -129,9 +143,10 @@ class TokenApi:
         """Get token balances for a wallet address"""
         from ankr.types import GetAccountBalanceRequest
 
+        blockchain = request.blockchain or DEFAULT_ACCOUNT_BALANCE_BLOCKCHAINS
         ankr_request = GetAccountBalanceRequest(
             walletAddress=request.wallet_address,
-            blockchain=request.blockchain,
+            blockchain=blockchain,
             pageToken=request.page_token,
             pageSize=request.page_size,
         )
@@ -189,7 +204,7 @@ class TokenApi:
             if not result or result.strip() == "":
                 return {"price_usd": "0"}
             try:
-                price = float(result)
+                float(result)
                 return {"price_usd": result}
             except ValueError:
                 # If it's not a valid number, try to parse as JSON
