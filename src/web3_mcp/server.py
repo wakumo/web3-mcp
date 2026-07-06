@@ -125,12 +125,14 @@ def init_server(
         Retrieve transfer history for NFTs, filtered by collection, token, wallet, or block range.
 
         Use this tool to track NFT movements, analyze trading activity, or build transfer history views.
-        Can filter by contract address, specific token ID, wallet address (sender or receiver), and block range.
-        Supports pagination for large result sets.
+        Can filter by contract address, wallet address (sender or receiver), block range, or timestamp range.
+        Supports pagination, multi-chain queries, sort order, and optional sync status checks. token_id is applied
+        as a client-side filter to the fetched page because the Ankr transfer SDK does not expose token_id filtering.
 
         Args:
-            request: Request containing blockchain identifier, optional filters (contract_address, token_id, wallet_address,
-                    from_block, to_block), and pagination parameters
+            request: Request containing blockchain identifier(s), optional filters (contract_address, token_id,
+                    wallet_address, from_block, to_block, from_timestamp, to_timestamp), sort/sync options,
+                    and pagination parameters
 
         Returns:
             Dictionary containing "transfers" array with transfer details (from, to, tokenId, block info) and "next_page_token" for pagination
@@ -148,7 +150,8 @@ def init_server(
         - Current transactions per second (TPS)
 
         Args:
-            request: Request containing the blockchain identifier (e.g., "eth", "bsc", "polygon")
+            request: Request containing blockchain identifier(s) from the curated supported list
+                    (eth, bsc, polygon, avalanche, arbitrum, fantom, optimism) and optional sync_check
 
         Returns:
             Dictionary containing "stats" with lastBlockNumber, transactions, and tps fields
@@ -161,11 +164,11 @@ def init_server(
         Retrieve blockchain block information within a specified range.
 
         Use this tool to fetch block data including block number, hash, timestamp, transaction count, gas used, and other block metadata.
-        Supports filtering by block range (from_block to to_block) and pagination for large result sets.
+        Supports filtering by block range (from_block to to_block), sort order, and optional log/transaction inclusion.
 
         Args:
             request: Request containing blockchain identifier, optional block range (from_block, to_block),
-                    sort order (descending_order), and pagination parameters (page_token, page_size)
+                    sort order (descending_order), include/decode options, and sync_check
 
         Returns:
             Dictionary containing "blocks" array with block data and "next_page_token" for pagination
@@ -177,13 +180,13 @@ def init_server(
         """
         Retrieve blockchain event logs emitted by smart contracts.
 
-        Use this tool to query event logs filtered by contract address, topics (event signatures), and block range.
-        Useful for tracking contract events, token transfers, or other on-chain activities. Supports pagination
-        for large result sets.
+        Use this tool to query event logs filtered by contract address, topics (event signatures), block range,
+        or timestamp range. Useful for tracking contract events, token transfers, or other on-chain activities.
+        Supports pagination, multi-chain queries, decoded logs, and optional sync status checks.
 
         Args:
-            request: Request containing blockchain identifier, optional filters (address, topics, from_block, to_block),
-                    sort order (descending_order), and pagination parameters (page_token, page_size)
+            request: Request containing blockchain identifier(s), optional filters (address, topics, from_block,
+                    to_block, from_timestamp, to_timestamp), sort/decode/sync options, and pagination parameters
 
         Returns:
             Dictionary containing "logs" array with log entries (address, topics, data, block info) and "next_page_token" for pagination
@@ -212,13 +215,13 @@ def init_server(
         """
         Retrieve all transactions associated with a wallet or contract address.
 
-        Use this tool to get transaction history for a specific address. Can filter by block range and supports
-        pagination. Returns both incoming and outgoing transactions. Useful for tracking wallet activity,
-        analyzing contract interactions, or building transaction history views.
+        Use this tool to get transaction history for a specific address. Can filter by block or timestamp range
+        and supports pagination. Returns both incoming and outgoing transactions. Useful for tracking wallet
+        activity, analyzing contract interactions, or building transaction history views.
 
         Args:
-            request: Request containing blockchain identifier, wallet/contract address, optional block range filters,
-                    sort order (descending_order), and pagination parameters (page_token, page_size)
+            request: Request containing blockchain identifier(s), wallet/contract address, optional block/timestamp
+                    range filters, include_logs, sort/sync options, and pagination parameters
 
         Returns:
             Dictionary containing "transactions" array with transaction details and "next_page_token" for pagination
@@ -235,7 +238,7 @@ def init_server(
         determining which chains to query for a specific address.
 
         Args:
-            request: Request containing blockchain identifier and wallet/contract address
+            request: Request containing wallet/contract address and optional sync_check
 
         Returns:
             Dictionary containing "interactions" array with blockchain identifiers where the address has activity
@@ -248,12 +251,12 @@ def init_server(
         Retrieve token balances for a wallet address, including native tokens and ERC-20 tokens.
 
         Use this tool to get a complete overview of all tokens held by a wallet. Returns balances in both
-        raw token amounts and USD values. Can filter to show only ERC-20 tokens, only native tokens, or
-        exclude NFTs. Supports pagination for wallets with many token holdings.
+        raw token amounts and USD values. Supports pagination, Ankr whitelist filtering, native-token-first
+        sorting, and optional sync status checks.
 
         Args:
-            request: Request containing wallet address, optional blockchain filter, filter options (erc20_only,
-                    native_only, tokens_only), and pagination parameters
+            request: Request containing wallet address, optional blockchain filter, supported SDK options
+                    (only_whitelisted, native_first, sync_check), and pagination parameters
 
         Returns:
             Dictionary containing "assets" array with token balances (symbol, balance, balanceUsd, decimals, etc.) and "next_page_token" for pagination
@@ -270,7 +273,7 @@ def init_server(
         or discovering available tokens on a chain.
 
         Args:
-            request: Request containing optional blockchain filter and pagination parameters
+            request: Request containing blockchain identifier, client-side page size limit, and optional sync_check
 
         Returns:
             Dictionary containing "currencies" array with token information (address, symbol, name, decimals, etc.)
@@ -286,7 +289,7 @@ def init_server(
         calculating portfolio values, displaying prices, or performing price-based calculations.
 
         Args:
-            request: Request containing blockchain identifier and token contract address
+            request: Request containing blockchain identifier, optional token contract address, and optional sync_check
 
         Returns:
             Dictionary containing "price_usd" with the current token price in USD
@@ -333,12 +336,12 @@ def init_server(
         Retrieve transfer history for tokens, filtered by contract, wallet, or block range.
 
         Use this tool to track token movements, analyze trading activity, or build transfer history views.
-        Can filter by token contract address, wallet address (sender or receiver), and block range.
-        Supports pagination for large result sets.
+        Can filter by token contract address, wallet address (sender or receiver), block range, or timestamp range.
+        Supports pagination, multi-chain queries, sort order, and optional sync status checks.
 
         Args:
-            request: Request containing blockchain identifier, optional filters (contract_address, wallet_address,
-                    from_block, to_block), and pagination parameters
+            request: Request containing blockchain identifier(s), optional filters (contract_address, wallet_address,
+                    from_block, to_block, from_timestamp, to_timestamp), sort/sync options, and pagination parameters
 
         Returns:
             Dictionary containing "transfers" array with transfer details (from, to, value, block info) and "next_page_token" for pagination
