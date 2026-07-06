@@ -4,13 +4,16 @@ Token API implementation for Ankr Advanced API
 
 import asyncio
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ankr import AnkrWeb3
 from pydantic import BaseModel, Field
 
 from ..constants import DEFAULT_CURRENCIES_LIMIT, DEFAULT_PAGE_SIZE, MAX_CURRENCIES_LIMIT, MAX_PAGE_SIZE
 from ..utils import extract_paginated_result, to_serializable
+
+BlockIdentifier = Union[int, float, str]
+BlockchainIdentifier = Union[str, List[str]]
 
 
 DEFAULT_ACCOUNT_BALANCE_BLOCKCHAINS = [
@@ -31,26 +34,26 @@ class AccountBalanceRequest(BaseModel):
     """Request model for getting token balances"""
 
     wallet_address: str = Field(..., description="Wallet address to query token balances for (hex string, e.g., '0x...')")
-    blockchain: Optional[str] = Field(
+    blockchain: Optional[BlockchainIdentifier] = Field(
         None,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries all supported chains.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries the default supported chains.",
     )
     page_size: Optional[int] = Field(None, description="Number of token balances per page (max 100)")
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
-    erc20_only: Optional[bool] = Field(None, description="If true, return only ERC-20 tokens (exclude native tokens)")
-    native_only: Optional[bool] = Field(None, description="If true, return only native blockchain tokens (e.g., ETH, BNB)")
-    tokens_only: Optional[bool] = Field(None, description="If true, return only tokens (exclude NFTs)")
+    only_whitelisted: Optional[bool] = Field(None, description="If true, return only Ankr-whitelisted tokens")
+    native_first: Optional[bool] = Field(None, description="If true, sort native blockchain tokens before other token balances")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
 
 
 class CurrenciesRequest(BaseModel):
     """Request model for getting available currencies on a blockchain"""
 
-    blockchain: Optional[str] = Field(
-        None,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, returns currencies from all chains.",
+    blockchain: str = Field(
+        ...,
+        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
-    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
-    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of currencies per page (max 50)")
+    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Maximum number of currencies to return client-side (max 50)")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
 
 
 class TokenPriceRequest(BaseModel):
@@ -60,7 +63,8 @@ class TokenPriceRequest(BaseModel):
         ...,
         description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
-    contract_address: str = Field(..., description="Token contract address (hex string, e.g., '0x...')")
+    contract_address: Optional[str] = Field(None, description="Token contract address (hex string, e.g., '0x...'). Omit to get the native token price.")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
 
 
 # Not provided as a tool, but needed for internal functionality
@@ -89,18 +93,22 @@ class TokenHoldersCountRequest(BaseModel):
 class TokenTransfersRequest(BaseModel):
     """Request model for getting token transfer history"""
 
-    blockchain: str = Field(
+    blockchain: BlockchainIdentifier = Field(
         ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
     contract_address: Optional[str] = Field(None, description="Token contract address to filter transfers by (hex string, e.g., '0x...')")
     wallet_address: Optional[str] = Field(None, description="Wallet address to filter transfers by (hex string, e.g., '0x...')")
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    from_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    to_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
+    from_timestamp: Optional[BlockIdentifier] = Field(None, description="Start timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    to_timestamp: Optional[BlockIdentifier] = Field(None, description="End timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
     page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transfers per page (max 100)")
 
@@ -147,8 +155,11 @@ class TokenApi:
         ankr_request = GetAccountBalanceRequest(
             walletAddress=request.wallet_address,
             blockchain=blockchain,
+            onlyWhitelisted=request.only_whitelisted,
+            nativeFirst=request.native_first,
             pageToken=request.page_token,
             pageSize=request.page_size,
+            syncCheck=request.sync_check,
         )
 
         result = self.client.token.get_account_balance(ankr_request)
@@ -160,16 +171,9 @@ class TokenApi:
         from ankr.types import GetCurrenciesRequest
 
         ankr_request = GetCurrenciesRequest(
-            blockchain=request.blockchain if request.blockchain else None,
+            blockchain=request.blockchain,
+            syncCheck=request.sync_check,
         )
-
-        # Check if Ankr SDK supports pagination for get_currencies
-        # Note: Ankr SDK may not support page_size/page_token for get_currencies
-        # If it does, we can add:
-        # if request.page_size is not None:
-        #     ankr_request.pageSize = request.page_size
-        # if request.page_token:
-        #     ankr_request.pageToken = request.page_token
 
         result = self.client.token.get_currencies(ankr_request)
         currencies_raw = list(result) if result else []
@@ -190,6 +194,7 @@ class TokenApi:
         ankr_request = GetTokenPriceRequest(
             blockchain=request.blockchain,
             contractAddress=request.contract_address,
+            syncCheck=request.sync_check,
         )
 
         result = self.client.token.get_token_price(ankr_request)
@@ -296,6 +301,10 @@ class TokenApi:
             address=addresses,
             fromBlock=request.from_block,
             toBlock=request.to_block,
+            fromTimestamp=request.from_timestamp,
+            toTimestamp=request.to_timestamp,
+            descOrder=request.descending_order,
+            syncCheck=request.sync_check,
             pageToken=request.page_token,
             pageSize=request.page_size,
         )
