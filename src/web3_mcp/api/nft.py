@@ -3,13 +3,16 @@ NFT API implementation for Ankr Advanced API
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ankr import AnkrWeb3
 from pydantic import BaseModel, Field
 
 from ..constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from ..utils import extract_paginated_result, to_serializable
+
+BlockIdentifier = Union[int, float, str]
+BlockchainIdentifier = Union[str, List[str]]
 
 
 class NFTCollection(BaseModel):
@@ -34,9 +37,9 @@ class NFTByOwnerRequest(BaseModel):
     """Request model for getting NFTs owned by a wallet address"""
 
     wallet_address: str = Field(..., description="Wallet address to query NFTs for (hex string, e.g., '0x...')")
-    blockchain: Optional[str] = Field(
+    blockchain: Optional[BlockchainIdentifier] = Field(
         None,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries all supported chains.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. If not specified, queries all supported chains.",
     )
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
     page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of NFTs per page (max 100)")
@@ -68,19 +71,23 @@ class NFTHoldersRequest(BaseModel):
 class NFTTransfersRequest(BaseModel):
     """Request model for getting NFT transfer history"""
 
-    blockchain: str = Field(
+    blockchain: BlockchainIdentifier = Field(
         ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
     contract_address: Optional[str] = Field(None, description="NFT contract address to filter transfers by (hex string, e.g., '0x...')")
     token_id: Optional[str] = Field(None, description="Specific token ID to filter transfers by (string)")
     wallet_address: Optional[str] = Field(None, description="Wallet address to filter transfers by (hex string, e.g., '0x...')")
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    from_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    to_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
+    from_timestamp: Optional[BlockIdentifier] = Field(None, description="Start timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    to_timestamp: Optional[BlockIdentifier] = Field(None, description="End timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
     page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transfers per page (max 100)")
 
@@ -194,6 +201,10 @@ class NFTApi:
             address=address,
             fromBlock=request.from_block,
             toBlock=request.to_block,
+            fromTimestamp=request.from_timestamp,
+            toTimestamp=request.to_timestamp,
+            descOrder=request.descending_order,
+            syncCheck=request.sync_check,
             pageToken=request.page_token,
             pageSize=request.page_size,
         )

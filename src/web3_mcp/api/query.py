@@ -3,22 +3,41 @@ Query API implementation for Ankr Advanced API
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ankr import AnkrWeb3
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from ..constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from ..constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, SUPPORTED_NETWORKS
 from ..utils import extract_paginated_result, to_serializable
+
+BlockIdentifier = Union[int, float, str]
+BlockchainIdentifier = Union[str, List[str]]
+LogTopic = Union[str, List[str]]
 
 
 class BlockchainStatsRequest(BaseModel):
     """Request model for getting blockchain statistics"""
 
-    blockchain: str = Field(
+    blockchain: BlockchainIdentifier = Field(
         ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+        description="Chain or chains to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism.",
     )
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
+
+    @field_validator("blockchain")
+    @classmethod
+    def validate_supported_blockchains(cls, value: BlockchainIdentifier) -> BlockchainIdentifier:
+        blockchains = [value] if isinstance(value, str) else value
+        unsupported = [blockchain for blockchain in blockchains if blockchain not in SUPPORTED_NETWORKS]
+        if unsupported:
+            supported = ", ".join(SUPPORTED_NETWORKS)
+            invalid = ", ".join(unsupported)
+            raise ValueError(
+                f"Unsupported blockchain for get_blockchain_stats: {invalid}. "
+                f"Supported values: {supported}."
+            )
+        return value
 
 
 class BlocksRequest(BaseModel):
@@ -28,35 +47,42 @@ class BlocksRequest(BaseModel):
         ...,
         description="Chain to query: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    from_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    to_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
     descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
-    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
-    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of blocks per page (max 10000)")
+    include_logs: Optional[bool] = Field(None, description="If true, include block logs in the response")
+    include_txs: Optional[bool] = Field(None, description="If true, include block transactions in the response")
+    decode_logs: Optional[bool] = Field(None, description="If true, decode logs when included")
+    decode_tx_data: Optional[bool] = Field(None, description="If true, decode transaction input data when transactions are included")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
 
 
 class LogsRequest(BaseModel):
     """Request model for getting blockchain event logs"""
 
-    blockchain: str = Field(
+    blockchain: BlockchainIdentifier = Field(
         ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    from_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    to_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    address: Optional[str] = Field(None, description="Contract address to filter logs by (hex string, e.g., '0x...')")
-    topics: Optional[List[str]] = Field(
-        None, description="Array of topic hashes to filter logs. Topics are order-dependent. Each topic can be a hex string or null"
+    from_timestamp: Optional[BlockIdentifier] = Field(None, description="Start timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    to_timestamp: Optional[BlockIdentifier] = Field(None, description="End timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    address: Optional[Union[str, List[str]]] = Field(None, description="Contract address or addresses to filter logs by (hex string, e.g., '0x...')")
+    topics: Optional[List[LogTopic]] = Field(
+        None, description="Topic filters for logs. Each topic can be a hex string or a list of alternative topic hashes."
     )
     descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    decode_logs: Optional[bool] = Field(None, description="If true, decode matching logs")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
     page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of logs per page (max 100)")
 
@@ -74,18 +100,22 @@ class TransactionsByHashRequest(BaseModel):
 class TransactionsByAddressRequest(BaseModel):
     """Request model for getting transactions by wallet or contract address"""
 
-    blockchain: str = Field(
+    blockchain: BlockchainIdentifier = Field(
         ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc. Can also be an array of chains or empty to query all chains.",
+        description="Chain or chains to query. Supported values include eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
     )
     wallet_address: str = Field(..., description="Wallet or contract address to search for transactions (hex string, e.g., '0x...')")
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    from_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to start from (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
+    to_block: Optional[BlockIdentifier] = Field(
+        None, description="Block number to end with (inclusive, >= 0). Supports integers, decimals, 'earliest', and 'latest'."
     )
+    from_timestamp: Optional[BlockIdentifier] = Field(None, description="Start timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
+    to_timestamp: Optional[BlockIdentifier] = Field(None, description="End timestamp filter. Supports numeric timestamps, 'earliest', and 'latest'.")
     descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
+    include_logs: Optional[bool] = Field(None, description="If true, include transaction logs in the response")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
     page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
     page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of transactions per page (max 100)")
 
@@ -93,21 +123,8 @@ class TransactionsByAddressRequest(BaseModel):
 class InteractionsRequest(BaseModel):
     """Request model for getting blockchains interacted with a particular address"""
 
-    blockchain: str = Field(
-        ...,
-        description="Chain to query. Supported values: eth, bsc, polygon, avalanche, arbitrum, fantom, optimism, base, linea, scroll, etc.",
-    )
     wallet_address: str = Field(..., description="Wallet or contract address to check for interactions (hex string, e.g., '0x...')")
-    from_block: Optional[int] = Field(
-        None, description="Block number to start from (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
-    )
-    to_block: Optional[int] = Field(
-        None, description="Block number to end with (inclusive, >= 0). Supported formats: hex, decimal, 'earliest', 'latest'"
-    )
-    contract_address: Optional[str] = Field(None, description="Optional contract address to filter interactions by (hex string, e.g., '0x...')")
-    descending_order: Optional[bool] = Field(None, description="True for descending order (newest first), false for ascending order (oldest first)")
-    page_token: Optional[str] = Field(None, description="Token from previous response to fetch the next page of results")
-    page_size: Optional[int] = Field(DEFAULT_PAGE_SIZE, description="Number of interactions per page (max 100)")
+    sync_check: Optional[bool] = Field(None, description="If true, include API sync status checks")
 
 
 class QueryApi:
@@ -120,9 +137,22 @@ class QueryApi:
         """Get blockchain statistics"""
         from ankr.types import GetBlockchainStatsRequest
 
-        ankr_request = GetBlockchainStatsRequest(blockchain=request.blockchain)
+        ankr_request = GetBlockchainStatsRequest(
+            blockchain=request.blockchain,
+            syncCheck=request.sync_check,
+        )
 
-        result = self.client.query.get_blockchain_stats(ankr_request)
+        try:
+            result = self.client.query.get_blockchain_stats(ankr_request)
+        except Exception as exc:
+            if "restricted by blockchain schema" in str(exc):
+                raise RuntimeError(
+                    "Ankr rejected ankr_getBlockchainStats for the requested blockchain schema. "
+                    "The request shape is valid; verify that this Ankr API key/project has "
+                    "Advanced API multichain access and getBlockchainStats enabled for "
+                    f"blockchain={request.blockchain!r}."
+                ) from exc
+            raise
 
         if isinstance(result, list) and len(result) > 0:
             stats_obj = result[0]
@@ -147,18 +177,20 @@ class QueryApi:
         """Get blocks information"""
         from ankr.types import GetBlocksRequest
 
-        params = {"blockchain": request.blockchain}
-
-        if request.from_block is not None:
-            params["fromBlock"] = str(request.from_block)
-
-        if request.to_block is not None:
-            params["toBlock"] = str(request.to_block)
-
-        if request.descending_order is not None:
-            params["descOrder"] = str(request.descending_order).lower()
-
-        ankr_request = GetBlocksRequest(**params)
+        params = {
+            "blockchain": request.blockchain,
+            "fromBlock": request.from_block,
+            "toBlock": request.to_block,
+            "descOrder": request.descending_order,
+            "includeLogs": request.include_logs,
+            "includeTxs": request.include_txs,
+            "decodeLogs": request.decode_logs,
+            "decodeTxData": request.decode_tx_data,
+            "syncCheck": request.sync_check,
+        }
+        ankr_request = GetBlocksRequest(
+            **{key: value for key, value in params.items() if value is not None}
+        )
 
         result = self.client.query.get_blocks(ankr_request)
         if hasattr(result, "__iter__") and not isinstance(result, (str, bytes, dict)):
@@ -172,13 +204,18 @@ class QueryApi:
         """Get blockchain logs"""
         from ankr.types import GetLogsRequest
 
+        addresses = [request.address] if isinstance(request.address, str) else request.address
         ankr_request = GetLogsRequest(
             blockchain=request.blockchain,
             fromBlock=request.from_block,
             toBlock=request.to_block,
-            address=request.address,
+            fromTimestamp=request.from_timestamp,
+            toTimestamp=request.to_timestamp,
+            address=addresses,
             topics=request.topics,
             descOrder=request.descending_order,
+            decodeLogs=request.decode_logs,
+            syncCheck=request.sync_check,
             pageToken=request.page_token,
             pageSize=request.page_size,
         )
@@ -225,10 +262,14 @@ class QueryApi:
         try:
             ankr_request = GetTransactionsByAddressRequest(
                 blockchain=request.blockchain,
-                address=request.wallet_address,
+                address=[request.wallet_address],
                 fromBlock=request.from_block,
                 toBlock=request.to_block,
+                fromTimestamp=request.from_timestamp,
+                toTimestamp=request.to_timestamp,
                 descOrder=request.descending_order,
+                includeLogs=request.include_logs,
+                syncCheck=request.sync_check,
                 pageToken=request.page_token,
                 pageSize=request.page_size,
             )
@@ -261,10 +302,9 @@ class QueryApi:
         """Get wallet interactions with contracts"""
         from ankr.types import GetInteractionsRequest
 
-        # GetInteractionsRequest only has 'address' and 'syncCheck'
         ankr_request = GetInteractionsRequest(
             address=request.wallet_address,
-            syncCheck=None,
+            syncCheck=request.sync_check,
         )
 
         # Run in executor to avoid blocking event loop
